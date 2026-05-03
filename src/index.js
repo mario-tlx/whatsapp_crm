@@ -3,7 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import QRCode from 'qrcode';
-import { Client, LocalAuth } from 'whatsapp-web.js';
+import wwebjs from 'whatsapp-web.js';
+const { Client, LocalAuth } = wwebjs;
 
 import { openDatabase, upsertMessage, getAgentConfig, setAgentConfig, addPendingReply, listPendingReplies, updatePendingReply, getRecentMessages, findSimilarUserReply, setMessageEmbedding, getMessageByWaId } from './db.js';
 import { decideReplyAction } from './policy.js';
