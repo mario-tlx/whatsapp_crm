@@ -46,7 +46,27 @@ export function createApiRouter(deps) {
   });
 
   router.get('/pending', (req, res) => {
-    res.json(deps.listPending());
+    res.json(
+      deps.listPending({
+        chatId: req.query.chatId || undefined,
+        status: req.query.status || 'pending',
+      })
+    );
+  });
+
+  router.get('/chats', (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 80, 200);
+    res.json(deps.listChats({ limit }));
+  });
+
+  router.post('/chats/:chatId/send', async (req, res) => {
+    try {
+      const text = req.body?.text ?? req.body?.message;
+      await deps.sendChatMessage(req.params.chatId, text);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({ error: String(e.message || e) });
+    }
   });
 
   router.post('/pending/:id/approve', async (req, res) => {

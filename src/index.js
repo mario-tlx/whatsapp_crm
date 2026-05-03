@@ -8,7 +8,7 @@ import QRCode from 'qrcode';
 const require = createRequire(import.meta.url);
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
-import { openDatabase, upsertMessage, getAgentConfig, setAgentConfig, addPendingReply, listPendingReplies, updatePendingReply, getRecentMessages, findSimilarUserReply, setMessageEmbedding, getMessageByWaId } from './db.js';
+import { openDatabase, upsertMessage, getAgentConfig, setAgentConfig, addPendingReply, listPendingReplies, updatePendingReply, getRecentMessages, findSimilarUserReply, setMessageEmbedding, getMessageByWaId, listChats } from './db.js';
 import { decideReplyAction } from './policy.js';
 import { createEmbeddingClient } from './embeddings.js';
 import { createChatClient, buildSystemPrompt, buildUserPrompt } from './agent.js';
@@ -253,8 +253,19 @@ app.use(
       }
       return setAgentConfig(db, body);
     },
-    listPending: () => listPendingReplies(db, { status: 'pending' }),
+    listPending: (opts) =>
+      listPendingReplies(db, {
+        status: opts?.status || 'pending',
+        chatId: opts?.chatId || undefined,
+      }),
+    listChats: (opts) => listChats(db, opts),
     getRecentMessages: (chatId, limit) => getRecentMessages(db, chatId, limit),
+    sendChatMessage: async (chatId, text) => {
+      const t = String(text ?? '').trim();
+      if (!t) throw new Error('Message text is required');
+      if (!waReady) throw new Error('WhatsApp not ready');
+      await client.sendMessage(chatId, t);
+    },
     approvePending: async (id, editedText) => {
       const rows = db.prepare('SELECT * FROM pending_replies WHERE id = ?').all(id);
       const row = rows[0];

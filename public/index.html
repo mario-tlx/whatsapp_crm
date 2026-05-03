@@ -10,8 +10,9 @@
       --panel: #1a2332;
       --text: #e7ecf3;
       --muted: #8b9bb4;
-      --accent: #25d366;
-      --warn: #f5a524;
+      --warn: #e8c547;
+      --them-bubble: #2d3a4d;
+      --me-bubble: #0d4d2c;
       --border: #2d3a4d;
     }
     * { box-sizing: border-box; }
@@ -20,149 +21,254 @@
       font-family: system-ui, -apple-system, Segoe UI, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
+      line-height: 1.45;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     header {
-      padding: 1rem 1.25rem;
+      padding: 0.65rem 1rem;
       border-bottom: 1px solid var(--border);
       display: flex;
       flex-wrap: wrap;
       gap: 0.75rem;
-      align-items: center;
+      align-items: flex-end;
       justify-content: space-between;
+      flex-shrink: 0;
     }
-    h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
-    main { max-width: 960px; margin: 0 auto; padding: 1.25rem; display: grid; gap: 1.25rem; }
-    section {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.1rem;
-    }
-    section h2 { margin: 0 0 0.75rem; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
-    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+    h1 { font-size: 1rem; margin: 0; font-weight: 600; }
+    .token-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; max-width: 420px; }
+    .token-row input { min-width: 180px; }
+    label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
     input, select, textarea, button {
       font: inherit;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--bg);
       color: var(--text);
-      padding: 0.5rem 0.65rem;
-      width: 100%;
+      padding: 0.45rem 0.6rem;
     }
-    textarea { min-height: 72px; resize: vertical; }
+    textarea { resize: vertical; min-height: 64px; width: 100%; }
     button {
       cursor: pointer;
-      width: auto;
       background: var(--accent);
       color: #062d1f;
       border: none;
       font-weight: 600;
-      padding: 0.5rem 1rem;
+      padding: 0.45rem 0.85rem;
     }
     button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-    button.danger { background: transparent; color: #ff6b6b; border-color: #663333; }
-    .row { display: grid; gap: 0.75rem; }
-    @media (min-width: 640px) {
-      .row.cols-2 { grid-template-columns: 1fr 1fr; }
-    }
-    .status { font-size: 0.85rem; color: var(--muted); }
-    .status.ok { color: var(--accent); }
-    .status.bad { color: #ff6b6b; }
-    .card {
+    button.danger { background: transparent; color: #ff8a8a; border-color: #663333; }
+    button.small { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+    .scroll-y { overflow-y: auto; }
+    .top-panels { flex-shrink: 0; padding: 0.75rem 1rem; display: grid; gap: 0.75rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+    details.section {
+      background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem;
-      margin-bottom: 0.65rem;
-      background: #121a24;
+      border-radius: 10px;
+      padding: 0.5rem 0.85rem;
     }
-    .card small { color: var(--muted); }
-    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-    .qr-wrap { text-align: center; margin-top: 0.75rem; }
-    .qr-wrap img { max-width: 280px; height: auto; border-radius: 8px; background: #fff; padding: 8px; }
+    details.section summary {
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 600;
+      user-select: none;
+    }
+    details.section[open] summary { margin-bottom: 0.65rem; }
+    .status { font-size: 0.8rem; color: var(--muted); }
+    .status.ok { color: var(--accent); }
+    .status.bad { color: #ff8a8a; }
+    .qr-wrap { text-align: center; margin-top: 0.5rem; }
+    .qr-wrap img { max-width: 220px; height: auto; border-radius: 8px; background: #fff; padding: 6px; }
+    .row2 { display: grid; gap: 0.5rem; }
+    @media (min-width: 560px) { .row2.cols { grid-template-columns: 1fr 1fr; } }
+
+    .chat-shell {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      border-top: 1px solid var(--border);
+    }
+    .chat-sidebar {
+      width: min(300px, 38vw);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: #121820;
+      min-width: 200px;
+    }
+    .chat-sidebar h2 {
+      font-size: 0.75rem;
+      margin: 0;
+      padding: 0.6rem 0.75rem;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-list { flex: 1; overflow-y: auto; }
+    .chat-item {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      background: transparent;
+      color: var(--text);
+      border-radius: 0;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      font-weight: 400;
+      display: block;
+    }
+    .chat-item:hover { background: #1a2330; }
+    .chat-item.active { background: var(--panel); border-left: 3px solid var(--accent); padding-left: calc(0.75rem - 3px); }
+    .chat-item .title { font-size: 0.88rem; font-weight: 500; word-break: break-all; }
+    .chat-item .meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+    .badge {
+      display: inline-block;
+      background: var(--warn);
+      color: #1a1500;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      margin-left: 0.35rem;
+      font-weight: 700;
+    }
+
+    .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+    .chat-header {
+      padding: 0.55rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .chat-header strong { color: var(--text); display: block; word-break: break-all; }
+    .messages-area {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .bubble {
+      max-width: 85%;
+      padding: 0.5rem 0.7rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.them { align-self: flex-start; background: var(--them-bubble); border: 1px solid var(--border); }
+    .bubble.me { align-self: flex-end; background: var(--me-bubble); border: 1px solid #1a5c3a; }
+    .bubble .time { font-size: 0.68rem; color: var(--muted); margin-top: 0.35rem; }
+    .draft-card {
+      border: 1px solid #5c4a1a;
+      background: #2a2415;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .draft-card .label { font-size: 0.72rem; color: #e8c547; font-weight: 600; margin-bottom: 0.35rem; }
+    .compose-area {
+      border-top: 1px solid var(--border);
+      padding: 0.65rem 1rem 0.85rem;
+      background: var(--panel);
+    }
+    .compose-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.45rem; align-items: center; }
+    .empty-chat { padding: 2rem 1rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 640px) {
+      .chat-sidebar { width: 100%; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+      .chat-shell { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>WhatsApp agent & archive</h1>
-    <div class="row" style="max-width: 420px;">
-      <div>
-        <label for="apiToken">API token (if <code>API_TOKEN</code> is set)</label>
-        <input id="apiToken" type="password" autocomplete="off" placeholder="Bearer token" />
+    <h1>WhatsApp agent</h1>
+    <div class="token-row">
+      <div style="flex: 1; min-width: 140px;">
+        <label for="apiToken"><code>API_TOKEN</code></label>
+        <input id="apiToken" type="password" autocomplete="off" placeholder="Paste token from Railway" />
       </div>
-      <div style="align-self: end;">
-        <button type="button" id="saveToken" class="secondary">Save token</button>
-      </div>
+      <button type="button" id="saveToken" class="secondary small">Save</button>
     </div>
   </header>
-  <main>
-    <section>
-      <h2>Connection</h2>
-      <p id="health" class="status">Loading…</p>
-      <p class="status">When a QR appears below, open WhatsApp on your phone → <strong>Settings → Linked devices → Link a device</strong> and scan it. On Railway, set <code>API_TOKEN</code> first so this page is not public without your secret.</p>
-      <div id="qrWrap" class="qr-wrap" hidden>
-        <p class="status" style="margin-bottom: 0.5rem;">Scan this code:</p>
-        <img id="qrImg" alt="WhatsApp QR code" />
-      </div>
-      <p id="qrHint" class="status" hidden>No QR right now (already linked or still starting).</p>
-    </section>
 
-    <section>
-      <h2>Agent configuration</h2>
-      <div class="row cols-2">
+  <div class="top-panels">
+    <details class="section" id="connDetails">
+      <summary>Connection &amp; QR</summary>
+      <p id="health" class="status">Loading…</p>
+      <div id="qrWrap" class="qr-wrap" hidden>
+        <img id="qrImg" alt="WhatsApp QR" />
+      </div>
+      <p id="qrHint" class="status" hidden>No QR (linked or starting).</p>
+    </details>
+    <details class="section">
+      <summary>Agent settings</summary>
+      <div class="row2 cols" style="margin-top: 0.35rem;">
         <div>
           <label for="mode">Mode</label>
-          <select id="mode">
-            <option value="off">Off — no drafts or sends</option>
-            <option value="approval">Approval — always queue draft for you</option>
-            <option value="autonomous">Autonomous — send unless approval keyword hits</option>
-            <option value="hybrid">Hybrid — auto on autonomous keywords, else queue</option>
+          <select id="mode" style="width:100%">
+            <option value="off">Off</option>
+            <option value="approval">Approval</option>
+            <option value="autonomous">Autonomous</option>
+            <option value="hybrid">Hybrid</option>
           </select>
         </div>
       </div>
-      <div class="row cols-2" style="margin-top: 0.75rem;">
+      <div class="row2 cols" style="margin-top: 0.5rem;">
         <div>
-          <label for="autoKw">Autonomous keywords (hybrid / override hints), pipe or comma separated</label>
-          <input id="autoKw" />
+          <label for="autoKw">Autonomous keywords</label>
+          <input id="autoKw" style="width:100%" />
         </div>
         <div>
-          <label for="apprKw">Always require approval if message contains</label>
-          <input id="apprKw" />
+          <label for="apprKw">Approval keywords</label>
+          <input id="apprKw" style="width:100%" />
         </div>
       </div>
-      <div style="margin-top: 0.75rem;">
-        <label for="extra">Extra system instructions for the model</label>
-        <textarea id="extra"></textarea>
+      <div style="margin-top: 0.5rem;">
+        <label for="extra">Extra instructions</label>
+        <textarea id="extra" rows="2"></textarea>
       </div>
-      <div style="margin-top: 0.75rem;">
-        <button type="button" id="saveConfig">Save configuration</button>
+      <div style="margin-top: 0.5rem;">
+        <button type="button" id="saveConfig" class="small">Save settings</button>
+        <span id="configMsg" class="status" style="margin-left:0.5rem"></span>
       </div>
-      <p id="configMsg" class="status"></p>
-    </section>
+    </details>
+  </div>
 
-    <section>
-      <h2>Pending replies</h2>
-      <button type="button" id="refreshPending" class="secondary">Refresh</button>
-      <div id="pendingList" style="margin-top: 0.75rem;"></div>
-    </section>
-
-    <section>
-      <h2>Recent messages (by chat)</h2>
-      <div class="row cols-2">
-        <div>
-          <label for="chatId">WhatsApp chat id (e.g. 491234567890@c.us)</label>
-          <input id="chatId" placeholder="chat_id@c.us" />
-        </div>
-        <div style="align-self: end;">
-          <button type="button" id="loadMessages" class="secondary">Load</button>
+  <div class="chat-shell">
+    <aside class="chat-sidebar">
+      <h2>Chats</h2>
+      <div class="chat-list scroll-y" id="chatList"></div>
+      <div style="padding: 0.5rem; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted);">
+        <label for="manualChatId">Open by id</label>
+        <input id="manualChatId" placeholder="e.g. 491234567890@c.us" style="width:100%; margin-top:0.25rem;" />
+        <button type="button" id="openManualChat" class="secondary small" style="width:100%; margin-top:0.35rem;">Open</button>
+      </div>
+    </aside>
+    <div class="chat-main">
+      <div class="chat-header" id="chatHeader">Select a chat or enter an id below.</div>
+      <div class="messages-area scroll-y" id="messagesArea">
+        <div class="empty-chat" id="emptyChatHint">Choose a contact from the list. History appears after messages sync from WhatsApp.</div>
+      </div>
+      <div id="draftsArea" style="padding: 0 1rem;"></div>
+      <div class="compose-area">
+        <label for="composeInput">Your message</label>
+        <textarea id="composeInput" rows="3" placeholder="Type a reply…"></textarea>
+        <div class="compose-actions">
+          <button type="button" id="sendCustom">Send</button>
+          <span id="composeMsg" class="status"></span>
         </div>
       </div>
-      <pre id="messagesOut" style="margin-top: 0.75rem; font-size: 0.8rem; overflow: auto; max-height: 280px; background: #121a24; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);"></pre>
-    </section>
-  </main>
+    </div>
+  </div>
+
   <script>
     const LS = 'wa_agent_api_token';
+    let selectedChatId = null;
+    let pollTimer = null;
 
     function getToken() {
       const v = document.getElementById('apiToken').value.trim();
@@ -186,11 +292,28 @@
       return data;
     }
 
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatTime(ts) {
+      try {
+        const d = new Date(ts);
+        return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+      } catch { return ''; }
+    }
+
     document.getElementById('saveToken').onclick = () => {
       const v = document.getElementById('apiToken').value.trim();
       if (v) localStorage.setItem(LS, v);
       else localStorage.removeItem(LS);
-      document.getElementById('configMsg').textContent = 'Token saved in browser.';
+      document.getElementById('configMsg').textContent = 'Token saved.';
+      loadChats();
+      if (selectedChatId) refreshChatView();
     };
     document.getElementById('apiToken').value = localStorage.getItem(LS) || '';
 
@@ -201,9 +324,7 @@
       const qrHint = document.getElementById('qrHint');
       try {
         const h = await api('/health');
-        el.textContent = h.whatsappReady
-          ? 'WhatsApp: connected and ready.'
-          : 'WhatsApp: waiting for you to scan the QR (or still connecting).';
+        el.textContent = h.whatsappReady ? 'WhatsApp: ready.' : 'WhatsApp: waiting for QR or connecting…';
         el.className = 'status ' + (h.whatsappReady ? 'ok' : 'bad');
         const qr = h.whatsappQr;
         if (qr && qr.dataUrl && !h.whatsappReady) {
@@ -215,7 +336,7 @@
           qrHint.hidden = h.whatsappReady;
         }
       } catch (e) {
-        el.textContent = 'Health check failed: ' + e.message;
+        el.textContent = e.message;
         el.className = 'status bad';
         qrWrap.hidden = true;
         qrHint.hidden = true;
@@ -249,89 +370,149 @@
       }
     };
 
-    function renderPending(items) {
-      const root = document.getElementById('pendingList');
-      root.innerHTML = '';
-      if (!items.length) {
-        root.textContent = 'No pending drafts.';
+    function selectChat(chatId, label) {
+      selectedChatId = chatId;
+      document.querySelectorAll('.chat-item').forEach((b) => {
+        b.classList.toggle('active', b.dataset.chatId === chatId);
+      });
+      const hdr = document.getElementById('chatHeader');
+      hdr.innerHTML = '<strong>' + escapeHtml(label || chatId) + '</strong><span style="font-size:0.75rem;display:block;margin-top:0.2rem">' + escapeHtml(chatId) + '</span>';
+      document.getElementById('composeMsg').textContent = '';
+      refreshChatView();
+    }
+
+    async function loadChats() {
+      const root = document.getElementById('chatList');
+      try {
+        const chats = await api('/chats?limit=100');
+        root.innerHTML = '';
+        if (!chats.length) {
+          root.innerHTML = '<p class="status" style="padding:0.75rem">No chats in database yet. Send/receive messages on WhatsApp, then refresh.</p>';
+          return;
+        }
+        for (const c of chats) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'chat-item';
+          btn.dataset.chatId = c.chat_id;
+          const title = (c.chat_name && String(c.chat_name).trim()) || c.chat_id;
+          const pending = Number(c.pending_count) > 0 ? '<span class="badge">' + c.pending_count + '</span>' : '';
+          btn.innerHTML =
+            '<span class="title">' + escapeHtml(title) + pending + '</span>' +
+            '<span class="meta">' + formatTime(c.last_message_at) + '</span>';
+          btn.onclick = () => selectChat(c.chat_id, title);
+          if (selectedChatId === c.chat_id) btn.classList.add('active');
+          root.appendChild(btn);
+        }
+      } catch (e) {
+        root.innerHTML = '<p class="status bad" style="padding:0.75rem">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    async function refreshChatView() {
+      if (!selectedChatId) return;
+      const area = document.getElementById('messagesArea');
+      const empty = document.getElementById('emptyChatHint');
+      if (empty) empty.remove();
+      try {
+        const msgs = await api('/messages?chatId=' + encodeURIComponent(selectedChatId) + '&limit=120');
+        area.innerHTML = '';
+        for (const m of msgs) {
+          const div = document.createElement('div');
+          div.className = 'bubble ' + (m.from_me ? 'me' : 'them');
+          div.innerHTML = escapeHtml(m.body || '') + '<div class="time">' + escapeHtml(formatTime(m.timestamp)) + '</div>';
+          area.appendChild(div);
+        }
+        area.scrollTop = area.scrollHeight;
+      } catch (e) {
+        area.innerHTML = '<p class="status bad">' + escapeHtml(e.message) + '</p>';
+      }
+
+      const draftsRoot = document.getElementById('draftsArea');
+      draftsRoot.innerHTML = '';
+      try {
+        const pending = await api('/pending?chatId=' + encodeURIComponent(selectedChatId) + '&status=pending');
+        if (!pending.length) return;
+        const wrap = document.createElement('div');
+        wrap.style.padding = '0 1rem 0.5rem';
+        wrap.innerHTML = '<div class="status" style="margin-bottom:0.35rem">Draft replies (approve, reject, or edit)</div>';
+        for (const p of pending) {
+          const card = document.createElement('div');
+          card.className = 'draft-card';
+          card.innerHTML =
+            '<div class="label">Draft #' + p.id + '</div>' +
+            '<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.35rem">Inbound: ' + escapeHtml(p.incoming_body || '') + '</div>';
+          const ta = document.createElement('textarea');
+          ta.rows = 3;
+          ta.value = p.draft_body || '';
+          ta.style.marginTop = '0.35rem';
+          const actions = document.createElement('div');
+          actions.className = 'compose-actions';
+          const send = document.createElement('button');
+          send.className = 'small';
+          send.textContent = 'Approve & send';
+          send.onclick = async () => {
+            try {
+              await api('/pending/' + p.id + '/approve', {
+                method: 'POST',
+                body: JSON.stringify({ editedText: ta.value }),
+              });
+              await refreshChatView();
+              await loadChats();
+            } catch (err) {
+              alert(err.message);
+            }
+          };
+          const rej = document.createElement('button');
+          rej.className = 'danger secondary small';
+          rej.textContent = 'Reject';
+          rej.onclick = async () => {
+            try {
+              await api('/pending/' + p.id + '/reject', { method: 'POST', body: '{}' });
+              await refreshChatView();
+              await loadChats();
+            } catch (err) {
+              alert(err.message);
+            }
+          };
+          actions.appendChild(send);
+          actions.appendChild(rej);
+          card.appendChild(ta);
+          card.appendChild(actions);
+          wrap.appendChild(card);
+        }
+        draftsRoot.appendChild(wrap);
+      } catch (e) {
+        draftsRoot.innerHTML = '<p class="status bad" style="padding:0.5rem 1rem">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    document.getElementById('sendCustom').onclick = async () => {
+      const msgEl = document.getElementById('composeMsg');
+      const text = document.getElementById('composeInput').value;
+      if (!selectedChatId) {
+        msgEl.textContent = 'Select a chat first.';
         return;
       }
-      for (const p of items) {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML =
-          '<small>#' + p.id + ' · ' + (p.chat_id || '') + '</small>' +
-          '<p><strong>Them:</strong> ' + escapeHtml(p.incoming_body || '') + '</p>' +
-          '<p><strong>Draft:</strong></p>';
-        const ta = document.createElement('textarea');
-        ta.className = 'edit-draft';
-        ta.value = p.draft_body || '';
-        div.appendChild(ta);
-        const actions = document.createElement('div');
-        actions.className = 'actions';
-        const send = document.createElement('button');
-        send.textContent = 'Send (use edited text if changed)';
-        send.onclick = async () => {
-          try {
-            await api('/pending/' + p.id + '/approve', {
-              method: 'POST',
-              body: JSON.stringify({ editedText: ta.value }),
-            });
-            await refreshPending();
-          } catch (e) {
-            alert(e.message);
-          }
-        };
-        const rej = document.createElement('button');
-        rej.className = 'danger secondary';
-        rej.textContent = 'Reject';
-        rej.onclick = async () => {
-          try {
-            await api('/pending/' + p.id + '/reject', { method: 'POST', body: '{}' });
-            await refreshPending();
-          } catch (e) {
-            alert(e.message);
-          }
-        };
-        actions.appendChild(send);
-        actions.appendChild(rej);
-        div.appendChild(actions);
-        root.appendChild(div);
-      }
-    }
-
-    function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    async function refreshPending() {
+      msgEl.textContent = 'Sending…';
       try {
-        const list = await api('/pending');
-        renderPending(list);
+        await api('/chats/' + encodeURIComponent(selectedChatId) + '/send', {
+          method: 'POST',
+          body: JSON.stringify({ text }),
+        });
+        document.getElementById('composeInput').value = '';
+        msgEl.textContent = 'Sent.';
+        await refreshChatView();
+        await loadChats();
       } catch (e) {
-        document.getElementById('pendingList').textContent = e.message;
+        msgEl.textContent = e.message;
       }
-    }
+    };
 
-    document.getElementById('refreshPending').onclick = refreshPending;
-
-    document.getElementById('loadMessages').onclick = async () => {
-      const chatId = document.getElementById('chatId').value.trim();
-      const out = document.getElementById('messagesOut');
-      if (!chatId) {
-        out.textContent = 'Enter a chat id.';
-        return;
-      }
-      try {
-        const msgs = await api('/messages?chatId=' + encodeURIComponent(chatId) + '&limit=80');
-        out.textContent = JSON.stringify(msgs, null, 2);
-      } catch (e) {
-        out.textContent = e.message;
-      }
+    document.getElementById('openManualChat').onclick = () => {
+      const id = document.getElementById('manualChatId').value.trim();
+      if (!id) return;
+      selectChat(id, id);
     };
 
     (async () => {
@@ -341,8 +522,12 @@
       } catch (e) {
         document.getElementById('configMsg').textContent = e.message;
       }
-      await refreshPending();
-      setInterval(loadHealth, 4000);
+      await loadChats();
+      setInterval(loadHealth, 5000);
+      pollTimer = setInterval(() => {
+        if (selectedChatId) refreshChatView();
+        loadChats();
+      }, 8000);
     })();
   </script>
 </body>

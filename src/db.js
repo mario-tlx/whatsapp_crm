@@ -110,15 +110,49 @@ export function addPendingReply(db, { chatId, waMessageId, incomingBody, draftBo
   return r.lastInsertRowid;
 }
 
-export function listPendingReplies(db, { status } = {}) {
-  let sql = 'SELECT * FROM pending_replies';
+export function listPendingReplies(db, { status, chatId } = {}) {
+  let sql = 'SELECT * FROM pending_replies WHERE 1=1';
   const args = [];
   if (status) {
-    sql += ' WHERE status = ?';
+    sql += ' AND status = ?';
     args.push(status);
+  }
+  if (chatId) {
+    sql += ' AND chat_id = ?';
+    args.push(chatId);
   }
   sql += ' ORDER BY id DESC LIMIT 100';
   return db.prepare(sql).all(...args);
+}
+
+/** Chats with recent activity (private chats only by default). */
+export function listChats(db, { limit = 80, excludeGroups = true } = {}) {
+  const lim = Math.min(Number(limit) || 80, 200);
+  let sql = `
+    SELECT m.chat_id AS chat_id,
+           (SELECT x.chat_name FROM messages x
+            WHERE x.chat_id = m.chat_id AND x.chat_name IS NOT NULL AND TRIM(x.chat_name) != ''
+            ORDER BY x.timestamp DESC LIMIT 1) AS chat_name,
+           MAX(m.timestamp) AS last_message_at,
+           COUNT(*) AS message_count
+    FROM messages m
+    WHERE m.body IS NOT NULL AND TRIM(m.body) != ''
+  `;
+  if (excludeGroups) {
+    sql += ` AND m.chat_id NOT LIKE '%@g.us'`;
+  }
+  sql += ` GROUP BY m.chat_id ORDER BY last_message_at DESC LIMIT ?`;
+  const rows = db.prepare(sql).all(lim);
+  const pendingRows = db
+    .prepare(
+      `SELECT chat_id, COUNT(*) AS c FROM pending_replies WHERE status = 'pending' GROUP BY chat_id`
+    )
+    .all();
+  const pendingMap = Object.fromEntries(pendingRows.map((r) => [r.chat_id, r.c]));
+  return rows.map((row) => ({
+    ...row,
+    pending_count: pendingMap[row.chat_id] ?? 0,
+  }));
 }
 
 export function updatePendingReply(db, id, { draftBody, status }) {
