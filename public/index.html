@@ -79,8 +79,8 @@
     }
     .card small { color: var(--muted); }
     .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-    .edit-draft { margin-top: 0.5rem; }
-  </style>
+    .qr-wrap { text-align: center; margin-top: 0.75rem; }
+    .qr-wrap img { max-width: 280px; height: auto; border-radius: 8px; background: #fff; padding: 8px; }
 </head>
 <body>
   <header>
@@ -99,7 +99,12 @@
     <section>
       <h2>Connection</h2>
       <p id="health" class="status">Loading…</p>
-      <p class="status">Pair this server from the Railway logs: scan the QR with WhatsApp → Linked devices.</p>
+      <p class="status">When a QR appears below, open WhatsApp on your phone → <strong>Settings → Linked devices → Link a device</strong> and scan it. On Railway, set <code>API_TOKEN</code> first so this page is not public without your secret.</p>
+      <div id="qrWrap" class="qr-wrap" hidden>
+        <p class="status" style="margin-bottom: 0.5rem;">Scan this code:</p>
+        <img id="qrImg" alt="WhatsApp QR code" />
+      </div>
+      <p id="qrHint" class="status" hidden>No QR right now (already linked or still starting).</p>
     </section>
 
     <section>
@@ -190,15 +195,29 @@
 
     async function loadHealth() {
       const el = document.getElementById('health');
+      const qrWrap = document.getElementById('qrWrap');
+      const qrImg = document.getElementById('qrImg');
+      const qrHint = document.getElementById('qrHint');
       try {
         const h = await api('/health');
         el.textContent = h.whatsappReady
           ? 'WhatsApp: connected and ready.'
-          : 'WhatsApp: waiting for QR / not ready yet.';
+          : 'WhatsApp: waiting for you to scan the QR (or still connecting).';
         el.className = 'status ' + (h.whatsappReady ? 'ok' : 'bad');
+        const qr = h.whatsappQr;
+        if (qr && qr.dataUrl && !h.whatsappReady) {
+          qrImg.src = qr.dataUrl;
+          qrWrap.hidden = false;
+          qrHint.hidden = true;
+        } else {
+          qrWrap.hidden = true;
+          qrHint.hidden = h.whatsappReady;
+        }
       } catch (e) {
         el.textContent = 'Health check failed: ' + e.message;
         el.className = 'status bad';
+        qrWrap.hidden = true;
+        qrHint.hidden = true;
       }
     }
 
@@ -322,7 +341,7 @@
         document.getElementById('configMsg').textContent = e.message;
       }
       await refreshPending();
-      setInterval(loadHealth, 15000);
+      setInterval(loadHealth, 4000);
     })();
   </script>
 </body>

@@ -2,57 +2,57 @@
 
 Node service using [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) to sync messages into SQLite, embed them with OpenAI, and draft replies. You control **when** the bot sends on its own versus when it queues a draft for your approval (with optional edit before send).
 
+## Railway-only workflow (no local run)
+
+1. **Create a Railway project** from this repo and use the **Dockerfile** (default when `Dockerfile` is present).
+2. **Add a volume**: create a volume and mount it at **`/data`** on the service. The image sets `DATA_ROOT=/data`, so both **`app.db`** and **`.wwebjs_auth`** (WhatsApp session) persist across deploys.
+3. **Set variables** in Railway:
+   - **`OPENAI_API_KEY`** — required for embeddings and reply drafts.
+   - **`API_TOKEN`** — **required on Railway**: a long random secret. The dashboard stores it in your browser and sends `Authorization: Bearer …` to `/api/*`. Without it, the API returns 503 so the pairing QR and your chats are not exposed publicly.
+   - **`PORT`** — Railway injects this automatically; do not override unless you know what you are doing.
+4. **Deploy**, open your Railway **public URL** (root `/`).
+5. In the **Connection** section, paste **`API_TOKEN`** → **Save token**. When WhatsApp needs pairing, a **QR image** appears there; scan with **WhatsApp → Settings → Linked devices → Link a device**.
+6. Use **Agent configuration** and **Pending replies** on the same page.
+
+Optional: **`ALLOW_OPEN_API=1`** disables the Railway requirement for `API_TOKEN` (not recommended on a public URL).
+
 ## Features
 
-- **Message store**: Every `message_create` event is upserted into SQLite (`messages` table) with text, chat id, direction, timestamp.
-- **Embeddings (RAG-style)**: Inbound/outbound text is embedded (`text-embedding-3-small` by default). For each new inbound message, the app retrieves your **past replies in that same chat** with highest cosine similarity and passes them to the model so it can mirror your wording when questions are similar.
-- **Agent modes** (`agent_config` table, editable via API/dashboard):
-  - `off` — no AI replies.
-  - `approval` — always queue draft; you approve or edit in the dashboard.
-  - `autonomous` — send immediately unless the message matches **approval keywords**.
-  - `hybrid` — send if **autonomous keywords** match; otherwise queue. **Approval keywords** always force a queue.
-- **HTTP API** under `/api/*` (optional `API_TOKEN` via `Authorization: Bearer …` or `?token=`).
-- **Web dashboard** at `/` for config and pending replies.
+- **Message store**: Messages seen while the client runs are stored in SQLite.
+- **Embeddings (RAG-style)**: Text is embedded; drafts use your **past replies in the same chat** with highest similarity plus recent thread lines.
+- **Agent modes**: `off`, `approval`, `autonomous`, `hybrid` with keyword lists (see earlier sections in code / `policy.js`).
+- **Web UI** at `/` — QR when needed, health, config, pending approvals, message peek by `chatId`.
 
 ## Environment
 
-Copy `.env.example` to `.env` and set:
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI key for embeddings + chat |
+| `API_TOKEN` | **Set on Railway** — secures `/api/*` and QR in the UI |
+| `DATA_ROOT` | Data directory (Dockerfile: `/data`) |
+| `DATABASE_PATH` | Override DB path (default `$DATA_ROOT/app.db`) |
+| `ALLOW_OPEN_API` | Set to `1` only if you accept an open API (e.g. local dev) |
+| `PUPPETEER_EXECUTABLE_PATH` | Set in Docker image to Chromium |
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes for AI | Embeddings + chat completions |
-| `API_TOKEN` | Recommended in production | Protects `/api/*` |
-| `PORT` | No | Default `3000` |
-| `DATA_ROOT` | No | Folder for `app.db` and `.wwebjs_auth` (Dockerfile uses `/data`) |
-| `DATABASE_PATH` | No | Overrides default `$DATA_ROOT/app.db` |
-| `PUPPETEER_EXECUTABLE_PATH` | Docker/Railway | Dockerfile sets `/usr/bin/chromium` |
-
-## Local run
+## Local run (optional)
 
 ```bash
 npm install
 npm start
 ```
 
-Scan the QR printed in the terminal with **WhatsApp → Settings → Linked devices**.
-
-## Railway
-
-1. Create a **new service** from this repo (Dockerfile build).
-2. Add variables: `OPENAI_API_KEY`, `API_TOKEN`, `PORT` (Railway sets `PORT` automatically).
-3. Mount a **volume** at `/data` (matches `DATA_ROOT=/data` in the Dockerfile). Set `OPENAI_API_KEY` and `API_TOKEN`.
-4. WhatsApp session files live under `/data/.wwebjs_auth`; the database defaults to `/data/app.db` unless you override `DATABASE_PATH`.
+Without Railway env vars you can omit `API_TOKEN` for quick testing; for anything reachable from the internet, always set `API_TOKEN`.
 
 **Compliance note:** Automating WhatsApp may violate Meta’s terms of use. Use an official API (WhatsApp Business Cloud API) for production customer messaging where policy matters.
 
 ## API
 
-- `GET /api/health` — `{ ok, whatsappReady }`
-- `GET /api/config` / `PUT /api/config` — mode, keyword lists, `system_prompt_extra`
-- `GET /api/pending` — queued drafts
-- `POST /api/pending/:id/approve` — body `{ "editedText": "optional override" }`
-- `POST /api/pending/:id/reject`
-- `GET /api/messages?chatId=...&limit=...`
+All under `/api/*` (Bearer token or `?token=` when `API_TOKEN` is set).
+
+- `GET /api/health` — `{ ok, whatsappReady, whatsappQr? }` (`whatsappQr` has `dataUrl` for the pairing image when needed)
+- `GET` / `PUT /api/config`
+- `GET /api/pending`, `POST /api/pending/:id/approve`, `POST /api/pending/:id/reject`
+- `GET /api/messages?chatId=...`
 
 ## Tech stack
 

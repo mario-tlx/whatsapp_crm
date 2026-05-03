@@ -2,7 +2,7 @@ import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
 import { Client, LocalAuth } from 'whatsapp-web.js';
 
 import { openDatabase, upsertMessage, getAgentConfig, setAgentConfig, addPendingReply, listPendingReplies, updatePendingReply, getRecentMessages, findSimilarUserReply, setMessageEmbedding, getMessageByWaId } from './db.js';
@@ -27,6 +27,8 @@ const embedClient = createEmbeddingClient(openaiKey, embedModel);
 const chatClient = createChatClient(openaiKey, chatModel);
 
 let waReady = false;
+/** @type {{ dataUrl: string | null, at: number | null }} */
+let waQrState = { dataUrl: null, at: null };
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: path.join(dataRoot, '.wwebjs_auth') }),
@@ -170,14 +172,23 @@ async function handleInboundAgent(msg) {
   console.log(`Queued approval for ${chatId} (${decision.reason})`);
 }
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
   waReady = false;
-  qrcode.generate(qr, { small: true });
-  console.log('Scan the QR code with WhatsApp (Linked devices).');
+  try {
+    waQrState = {
+      dataUrl: await QRCode.toDataURL(qr, { width: 280, margin: 2, errorCorrectionLevel: 'M' }),
+      at: Date.now(),
+    };
+  } catch (e) {
+    console.error('QR render failed:', e.message || e);
+    waQrState = { dataUrl: null, at: Date.now() };
+  }
+  console.log('WhatsApp QR updated — open the web UI Connection section to scan.');
 });
 
 client.on('ready', () => {
   waReady = true;
+  waQrState = { dataUrl: null, at: null };
   console.log('WhatsApp client is ready.');
 });
 
@@ -186,11 +197,13 @@ client.on('authenticated', () => {
 });
 
 client.on('auth_failure', (m) => {
+  waQrState = { dataUrl: null, at: null };
   console.error('Auth failure', m);
 });
 
 client.on('disconnected', (r) => {
   waReady = false;
+  waQrState = { dataUrl: null, at: null };
   console.warn('Disconnected:', r);
 });
 
@@ -214,6 +227,8 @@ app.use(
   '/api',
   createApiRouter({
     isReady: () => waReady,
+    getQr: () =>
+      waQrState.dataUrl ? { dataUrl: waQrState.dataUrl, generatedAt: waQrState.at } : null,
     getConfig: () => getAgentConfig(db),
     updateConfig: (body) => {
       const allowed = ['off', 'autonomous', 'approval', 'hybrid'];

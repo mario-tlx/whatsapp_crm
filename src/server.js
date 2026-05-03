@@ -5,7 +5,16 @@ export function createApiRouter(deps) {
 
   const auth = (req, res, next) => {
     const token = process.env.API_TOKEN;
-    if (!token) return next();
+    const onRailway = Boolean(process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_SERVICE_ID);
+    const allowOpen = process.env.ALLOW_OPEN_API === '1';
+    const requireAuth = Boolean(token) || (onRailway && !allowOpen);
+    if (!requireAuth) return next();
+    if (!token) {
+      return res.status(503).json({
+        error:
+          'Set API_TOKEN in Railway variables. It secures the dashboard API and the WhatsApp pairing QR. For local dev without Railway, omit Railway env vars or set ALLOW_OPEN_API=1 (not recommended).',
+      });
+    }
     const h = req.headers.authorization;
     const bearer = h && h.startsWith('Bearer ') ? h.slice(7) : null;
     const q = req.query.token;
@@ -16,7 +25,11 @@ export function createApiRouter(deps) {
   router.use(auth);
 
   router.get('/health', (req, res) => {
-    res.json({ ok: true, whatsappReady: deps.isReady() });
+    res.json({
+      ok: true,
+      whatsappReady: deps.isReady(),
+      whatsappQr: deps.getQr?.() ?? null,
+    });
   });
 
   router.get('/config', (req, res) => {
