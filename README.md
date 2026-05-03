@@ -1,13 +1,13 @@
 # WhatsApp archive + configurable AI agent (RAG-style)
 
-Node service using [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) to sync messages into SQLite, embed them with OpenAI, and draft replies. You control **when** the bot sends on its own versus when it queues a draft for your approval (with optional edit before send).
+Node service using [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) to sync messages into SQLite, embed them via **[OpenRouter](https://openrouter.ai/)** (embeddings + chat over HTTP), and draft replies. You control **when** the bot sends on its own versus when it queues a draft for your approval (with optional edit before send).
 
 ## Railway-only workflow (no local run)
 
 1. **Create a Railway project** from this repo and use the **Dockerfile** (default when `Dockerfile` is present).
 2. **Add a volume**: create a volume and mount it at **`/data`** on the service. The image sets `DATA_ROOT=/data`, so both **`app.db`** and **`.wwebjs_auth`** (WhatsApp session) persist across deploys.
 3. **Set variables** in Railway:
-   - **`OPENAI_API_KEY`** — required for embeddings and reply drafts.
+   - **`OPENROUTER_API_KEY`** — from [OpenRouter keys](https://openrouter.ai/keys); required for embeddings and reply drafts.
    - **`API_TOKEN`** — **required on Railway**: a long random secret. The dashboard stores it in your browser and sends `Authorization: Bearer …` to `/api/*`. Without it, the API returns 503 so the pairing QR and your chats are not exposed publicly.
    - **`PORT`** — Railway injects this automatically; do not override unless you know what you are doing.
 4. **Deploy**, open your Railway **public URL** (root `/`).
@@ -41,7 +41,10 @@ The Docker build also passes **`ARG RAILWAY_GIT_COMMIT_SHA`** into **`DEPLOY_GIT
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` | OpenAI key for embeddings + chat |
+| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/) API key |
+| `OPENROUTER_CHAT_MODEL` | Default `openai/gpt-4o-mini` — any [OpenRouter chat model](https://openrouter.ai/models) |
+| `OPENROUTER_EMBEDDING_MODEL` | Default `openai/text-embedding-3-small` — must support embeddings on OpenRouter |
+| `OPENROUTER_BASE_URL` | Optional; default `https://openrouter.ai/api/v1` |
 | `API_TOKEN` | **Set on Railway** — secures `/api/*` and QR in the UI |
 | `DATA_ROOT` | Data directory (Dockerfile: `/data`) |
 | `DATABASE_PATH` | Override DB path (default `$DATA_ROOT/app.db`) |
@@ -72,4 +75,4 @@ All under `/api/*` (Bearer token or `?token=` when `API_TOKEN` is set).
 
 ## Tech stack
 
-Node 18+, Express, better-sqlite3, OpenAI SDK, whatsapp-web.js, Puppeteer/Chromium.
+Node 18+, Express, better-sqlite3, OpenRouter (fetch), whatsapp-web.js, Puppeteer/Chromium.

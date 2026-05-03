@@ -1,17 +1,21 @@
-import OpenAI from 'openai';
+import { openRouterChatCompletion } from './openrouter.js';
 
+/**
+ * @param {string} apiKey - OPENROUTER_API_KEY
+ * @param {string} model - e.g. openai/gpt-4o-mini
+ */
 export function createChatClient(apiKey, model) {
   if (!apiKey) {
     return {
       async draftReply() {
-        throw new Error('OPENAI_API_KEY is not set');
+        throw new Error('OPENROUTER_API_KEY is not set');
       },
     };
   }
-  const client = new OpenAI({ apiKey });
   return {
     async draftReply({ systemPrompt, userContent }) {
-      const res = await client.chat.completions.create({
+      const content = await openRouterChatCompletion({
+        apiKey,
         model,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -20,7 +24,7 @@ export function createChatClient(apiKey, model) {
         temperature: 0.4,
         max_tokens: 800,
       });
-      return (res.choices[0]?.message?.content || '').trim();
+      return content.trim();
     },
   };
 }

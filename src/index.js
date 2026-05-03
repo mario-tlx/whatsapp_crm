@@ -21,13 +21,13 @@ const dataRoot = process.env.DATA_ROOT || process.env.RAILWAY_VOLUME_MOUNT_PATH 
 const defaultDbPath = path.join(dataRoot, 'app.db');
 const dbPath = process.env.DATABASE_PATH || defaultDbPath;
 const port = Number(process.env.PORT) || 3000;
-const openaiKey = process.env.OPENAI_API_KEY || '';
-const chatModel = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
-const embedModel = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
+const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+const chatModel = process.env.OPENROUTER_CHAT_MODEL || 'openai/gpt-4o-mini';
+const embedModel = process.env.OPENROUTER_EMBEDDING_MODEL || 'openai/text-embedding-3-small';
 
 const db = openDatabase(dbPath);
-const embedClient = createEmbeddingClient(openaiKey, embedModel);
-const chatClient = createChatClient(openaiKey, chatModel);
+const embedClient = createEmbeddingClient(openRouterKey, embedModel);
+const chatClient = createChatClient(openRouterKey, chatModel);
 
 let waReady = false;
 /** @type {{ dataUrl: string | null, at: number | null }} */
@@ -76,7 +76,7 @@ function persistMessage(msg) {
 }
 
 function queueEmbedding(waMessageId, body) {
-  if (!openaiKey || !body || body.length < 3) return;
+  if (!openRouterKey || !body || body.length < 3) return;
   setImmediate(async () => {
     try {
       const existing = getMessageByWaId(db, waMessageId);
@@ -98,7 +98,7 @@ async function buildDraftForChat(chatId, incomingBody) {
   });
 
   let incomingVec = null;
-  if (openaiKey && incomingBody) {
+  if (openRouterKey && incomingBody) {
     try {
       incomingVec = await embedClient.embed(incomingBody);
     } catch {
@@ -126,7 +126,7 @@ async function buildDraftForChat(chatId, incomingBody) {
 async function handleInboundAgent(msg) {
   if (msg.fromMe) return;
   if (msg.from?.endsWith('@g.us')) return;
-  if (!openaiKey) return;
+  if (!openRouterKey) return;
 
   const cfg = getAgentConfig(db);
   if (!cfg || cfg.mode === 'off') return;
