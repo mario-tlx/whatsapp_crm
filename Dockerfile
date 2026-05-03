@@ -30,6 +30,9 @@ RUN mkdir -p /data
 
 WORKDIR /app
 
+ARG RAILWAY_GIT_COMMIT_SHA=
+ENV DEPLOY_GIT_SHA=${RAILWAY_GIT_COMMIT_SHA}
+
 COPY package.json package-lock.json* ./
 RUN npm ci 2>/dev/null || npm install
 

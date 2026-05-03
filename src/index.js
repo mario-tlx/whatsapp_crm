@@ -1,9 +1,12 @@
+import { createRequire } from 'module';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import QRCode from 'qrcode';
-import { Client, LocalAuth } from 'whatsapp-web.js';
+
+const require = createRequire(import.meta.url);
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
 import { openDatabase, upsertMessage, getAgentConfig, setAgentConfig, addPendingReply, listPendingReplies, updatePendingReply, getRecentMessages, findSimilarUserReply, setMessageEmbedding, getMessageByWaId } from './db.js';
 import { decideReplyAction } from './policy.js';
@@ -221,6 +224,19 @@ client.on('message_create', async (msg) => {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.get('/version', (req, res) => {
+  const sha = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_GIT_SHA || null;
+  res.json({
+    ok: true,
+    gitCommitSha: sha,
+    gitCommitShaShort: sha ? sha.slice(0, 7) : null,
+    gitBranch: process.env.RAILWAY_GIT_BRANCH || null,
+    railwayDeploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+    node: process.version,
+  });
+});
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(
@@ -257,6 +273,9 @@ app.use(
 
 app.listen(port, () => {
   console.log(`HTTP API on http://0.0.0.0:${port}`);
+  console.log(
+    `Deploy revision: git=${process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_GIT_SHA || 'unknown'} branch=${process.env.RAILWAY_GIT_BRANCH || 'unknown'}`
+  );
 });
 
 client.initialize().catch((e) => {
