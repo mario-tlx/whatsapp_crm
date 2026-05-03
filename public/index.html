@@ -10,6 +10,7 @@
       --panel: #1a2332;
       --text: #e7ecf3;
       --muted: #8b9bb4;
+      --accent: #25d366;
       --warn: #e8c547;
       --them-bubble: #2d3a4d;
       --me-bubble: #0d4d2c;
@@ -60,6 +61,12 @@
     button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
     button.danger { background: transparent; color: #ff8a8a; border-color: #663333; }
     button.small { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+    button.btn-send {
+      background: #25d366 !important;
+      color: #062d1f !important;
+      border: none;
+      min-width: 5.5rem;
+    }
     .scroll-y { overflow-y: auto; }
     .top-panels { flex-shrink: 0; padding: 0.75rem 1rem; display: grid; gap: 0.75rem; max-width: 1200px; margin: 0 auto; width: 100%; }
     details.section {
@@ -170,12 +177,28 @@
       margin-bottom: 0.5rem;
     }
     .draft-card .label { font-size: 0.72rem; color: #e8c547; font-weight: 600; margin-bottom: 0.35rem; }
+    .proposal-bar {
+      border-top: 1px solid var(--border);
+      padding: 0.55rem 1rem;
+      background: #2a2415;
+      border-left: 3px solid var(--warn);
+      font-size: 0.82rem;
+    }
+    .proposal-bar[hidden] { display: none !important; }
+    .proposal-bar .incoming-preview {
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+      max-height: 3.2em;
+      overflow: hidden;
+    }
+    .proposal-bar .incoming-preview strong { color: var(--text); }
     .compose-area {
       border-top: 1px solid var(--border);
       padding: 0.65rem 1rem 0.85rem;
       background: var(--panel);
     }
     .compose-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.45rem; align-items: center; }
+    .compose-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
     .empty-chat { padding: 2rem 1rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
     @media (max-width: 640px) {
       .chat-sidebar { width: 100%; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
@@ -253,14 +276,21 @@
       <div class="messages-area scroll-y" id="messagesArea">
         <div class="empty-chat" id="emptyChatHint">Choose a contact from the list. History appears after messages sync from WhatsApp.</div>
       </div>
-      <div id="draftsArea" style="padding: 0 1rem;"></div>
+      <div id="proposalBar" class="proposal-bar" hidden>
+        <div class="incoming-preview" id="proposalIncoming"></div>
+        <div class="compose-actions" style="margin-top:0">
+          <button type="button" id="approveProposal" class="small btn-send">Approve &amp; send</button>
+          <button type="button" id="rejectProposal" class="danger secondary small">Reject draft</button>
+        </div>
+      </div>
       <div class="compose-area">
-        <label for="composeInput">Your message</label>
-        <textarea id="composeInput" rows="3" placeholder="Type a reply…"></textarea>
+        <label for="composeInput">Your message <span style="font-weight:400;color:var(--muted)">(AI fills this when a draft is queued)</span></label>
+        <textarea id="composeInput" rows="4" placeholder="Type a reply, or edit the proposed text below…"></textarea>
         <div class="compose-actions">
-          <button type="button" id="sendCustom">Send</button>
+          <button type="button" id="sendCustom" class="btn-send">Send</button>
           <span id="composeMsg" class="status"></span>
         </div>
+        <p id="composeModeHint" class="compose-hint" hidden></p>
       </div>
     </div>
   </div>
@@ -269,6 +299,9 @@
     const LS = 'wa_agent_api_token';
     let selectedChatId = null;
     let pollTimer = null;
+    /** @type {number|null} */
+    let activeProposalId = null;
+    let userEditedProposal = false;
 
     function getToken() {
       const v = document.getElementById('apiToken').value.trim();
@@ -365,6 +398,7 @@
           }),
         });
         msg.textContent = 'Saved.';
+        if (selectedChatId) refreshChatView();
       } catch (e) {
         msg.textContent = e.message;
       }
@@ -378,6 +412,10 @@
       const hdr = document.getElementById('chatHeader');
       hdr.innerHTML = '<strong>' + escapeHtml(label || chatId) + '</strong><span style="font-size:0.75rem;display:block;margin-top:0.2rem">' + escapeHtml(chatId) + '</span>';
       document.getElementById('composeMsg').textContent = '';
+      activeProposalId = null;
+      userEditedProposal = false;
+      document.getElementById('proposalBar').hidden = true;
+      document.getElementById('composeInput').value = '';
       refreshChatView();
     }
 
@@ -428,70 +466,128 @@
         area.innerHTML = '<p class="status bad">' + escapeHtml(e.message) + '</p>';
       }
 
-      const draftsRoot = document.getElementById('draftsArea');
-      draftsRoot.innerHTML = '';
+      let pending = [];
       try {
-        const pending = await api('/pending?chatId=' + encodeURIComponent(selectedChatId) + '&status=pending');
-        if (!pending.length) return;
-        const wrap = document.createElement('div');
-        wrap.style.padding = '0 1rem 0.5rem';
-        wrap.innerHTML = '<div class="status" style="margin-bottom:0.35rem">Draft replies (approve, reject, or edit)</div>';
-        for (const p of pending) {
-          const card = document.createElement('div');
-          card.className = 'draft-card';
-          card.innerHTML =
-            '<div class="label">Draft #' + p.id + '</div>' +
-            '<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.35rem">Inbound: ' + escapeHtml(p.incoming_body || '') + '</div>';
-          const ta = document.createElement('textarea');
-          ta.rows = 3;
-          ta.value = p.draft_body || '';
-          ta.style.marginTop = '0.35rem';
-          const actions = document.createElement('div');
-          actions.className = 'compose-actions';
-          const send = document.createElement('button');
-          send.className = 'small';
-          send.textContent = 'Approve & send';
-          send.onclick = async () => {
-            try {
-              await api('/pending/' + p.id + '/approve', {
-                method: 'POST',
-                body: JSON.stringify({ editedText: ta.value }),
-              });
-              await refreshChatView();
-              await loadChats();
-            } catch (err) {
-              alert(err.message);
-            }
-          };
-          const rej = document.createElement('button');
-          rej.className = 'danger secondary small';
-          rej.textContent = 'Reject';
-          rej.onclick = async () => {
-            try {
-              await api('/pending/' + p.id + '/reject', { method: 'POST', body: '{}' });
-              await refreshChatView();
-              await loadChats();
-            } catch (err) {
-              alert(err.message);
-            }
-          };
-          actions.appendChild(send);
-          actions.appendChild(rej);
-          card.appendChild(ta);
-          card.appendChild(actions);
-          wrap.appendChild(card);
-        }
-        draftsRoot.appendChild(wrap);
+        pending = await api('/pending?chatId=' + encodeURIComponent(selectedChatId) + '&status=pending');
       } catch (e) {
-        draftsRoot.innerHTML = '<p class="status bad" style="padding:0.5rem 1rem">' + escapeHtml(e.message) + '</p>';
+        document.getElementById('composeMsg').textContent = e.message;
+      }
+
+      updateProposalUI(pending);
+
+      try {
+        const cfg = await api('/config');
+        const hint = document.getElementById('composeModeHint');
+        const mode = cfg.mode || 'approval';
+        if (mode === 'autonomous') {
+          hint.textContent =
+            'Mode: Autonomous — messages that pass your rules are sent from WhatsApp automatically; others appear here as drafts.';
+          hint.hidden = false;
+        } else if (mode === 'hybrid') {
+          hint.textContent =
+            'Mode: Hybrid — some messages auto-reply; others queue a draft here (edit text, then Approve & send or Send).';
+          hint.hidden = false;
+        } else if (mode === 'approval') {
+          hint.textContent = 'Mode: Approval — every AI reply waits here: edit if you want, then Approve & send or Send.';
+          hint.hidden = false;
+        } else {
+          hint.textContent = 'Mode: Off — turn on a mode under Agent settings to get draft proposals.';
+          hint.hidden = false;
+        }
+      } catch {
+        document.getElementById('composeModeHint').hidden = true;
       }
     }
+
+    function updateProposalUI(pending) {
+      const bar = document.getElementById('proposalBar');
+      const incomingEl = document.getElementById('proposalIncoming');
+      const compose = document.getElementById('composeInput');
+
+      if (!pending || !pending.length) {
+        bar.hidden = true;
+        activeProposalId = null;
+        userEditedProposal = false;
+        return;
+      }
+
+      const sorted = pending.slice().sort((a, b) => b.id - a.id);
+      const latest = sorted[0];
+
+      if (latest.id !== activeProposalId) {
+        activeProposalId = latest.id;
+        userEditedProposal = false;
+        compose.value = latest.draft_body || '';
+      } else if (!userEditedProposal) {
+        compose.value = latest.draft_body || '';
+      }
+
+      bar.hidden = false;
+      const inc = latest.incoming_body || '(no text)';
+      incomingEl.innerHTML =
+        '<strong>They said:</strong> ' +
+        escapeHtml(inc.length > 220 ? inc.slice(0, 220) + '…' : inc) +
+        (sorted.length > 1
+          ? ' <span style="opacity:0.85">(' + sorted.length + ' drafts in queue — oldest first in DB)</span>'
+          : '');
+
+      document.getElementById('approveProposal').dataset.pendingId = String(latest.id);
+      document.getElementById('rejectProposal').dataset.pendingId = String(latest.id);
+    }
+
+    document.getElementById('composeInput').addEventListener('input', () => {
+      userEditedProposal = true;
+    });
+
+    async function approveActiveDraft() {
+      const id = activeProposalId;
+      if (!id || !selectedChatId) return;
+      const msgEl = document.getElementById('composeMsg');
+      msgEl.textContent = 'Sending…';
+      try {
+        await api('/pending/' + id + '/approve', {
+          method: 'POST',
+          body: JSON.stringify({ editedText: document.getElementById('composeInput').value }),
+        });
+        activeProposalId = null;
+        userEditedProposal = false;
+        msgEl.textContent = 'Sent.';
+        await refreshChatView();
+        await loadChats();
+      } catch (e) {
+        msgEl.textContent = e.message;
+      }
+    }
+
+    document.getElementById('approveProposal').onclick = approveActiveDraft;
+
+    document.getElementById('rejectProposal').onclick = async () => {
+      const id = activeProposalId;
+      if (!id) return;
+      const msgEl = document.getElementById('composeMsg');
+      msgEl.textContent = 'Rejecting…';
+      try {
+        await api('/pending/' + id + '/reject', { method: 'POST', body: '{}' });
+        activeProposalId = null;
+        userEditedProposal = false;
+        document.getElementById('composeInput').value = '';
+        msgEl.textContent = 'Draft rejected.';
+        await refreshChatView();
+        await loadChats();
+      } catch (e) {
+        msgEl.textContent = e.message;
+      }
+    };
 
     document.getElementById('sendCustom').onclick = async () => {
       const msgEl = document.getElementById('composeMsg');
       const text = document.getElementById('composeInput').value;
       if (!selectedChatId) {
         msgEl.textContent = 'Select a chat first.';
+        return;
+      }
+      if (!String(text).trim()) {
+        msgEl.textContent = 'Type a message or wait for a draft in the box above.';
         return;
       }
       msgEl.textContent = 'Sending…';
@@ -501,6 +597,8 @@
           body: JSON.stringify({ text }),
         });
         document.getElementById('composeInput').value = '';
+        activeProposalId = null;
+        userEditedProposal = false;
         msgEl.textContent = 'Sent.';
         await refreshChatView();
         await loadChats();
@@ -524,10 +622,11 @@
       }
       await loadChats();
       setInterval(loadHealth, 5000);
+      if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(() => {
-        if (selectedChatId) refreshChatView();
         loadChats();
-      }, 8000);
+        if (selectedChatId) refreshChatView();
+      }, 2500);
     })();
   </script>
 </body>
