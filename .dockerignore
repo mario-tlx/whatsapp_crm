@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.git
+.env
+.wwebjs_auth
+.wwebjs_cache
+*.log
+.DS_Store
+data
