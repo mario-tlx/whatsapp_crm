@@ -65,7 +65,9 @@ All under `/api/*` (Bearer token or `?token=` when `API_TOKEN` is set).
 
 - `GET /api/health` — `{ ok, whatsappReady, whatsappQr? }` (`whatsappQr` has `dataUrl` for the pairing image when needed)
 - `GET` / `PUT /api/config`
-- `GET /api/pending`, `POST /api/pending/:id/approve`, `POST /api/pending/:id/reject`
+- `GET /api/chats?limit=...` — recent private chats with `pending_count`
+- `GET /api/pending?chatId=...&status=pending` — filter drafts by chat
+- `POST /api/chats/:chatId/send` — body `{ "text": "..." }` send your own message
 - `GET /api/messages?chatId=...`
 
 ## Tech stack
