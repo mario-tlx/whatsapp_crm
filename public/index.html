@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WhatsApp Agent</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #25d366;
+      --warn: #f5a524;
+      --border: #2d3a4d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.25rem; display: grid; gap: 1.25rem; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    section h2 { margin: 0 0 0.75rem; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+    input, select, textarea, button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      padding: 0.5rem 0.65rem;
+      width: 100%;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    button {
+      cursor: pointer;
+      width: auto;
+      background: var(--accent);
+      color: #062d1f;
+      border: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+    }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    button.danger { background: transparent; color: #ff6b6b; border-color: #663333; }
+    .row { display: grid; gap: 0.75rem; }
+    @media (min-width: 640px) {
+      .row.cols-2 { grid-template-columns: 1fr 1fr; }
+    }
+    .status { font-size: 0.85rem; color: var(--muted); }
+    .status.ok { color: var(--accent); }
+    .status.bad { color: #ff6b6b; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.65rem;
+      background: #121a24;
+    }
+    .card small { color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .qr-wrap { text-align: center; margin-top: 0.75rem; }
+    .qr-wrap img { max-width: 280px; height: auto; border-radius: 8px; background: #fff; padding: 8px; }
+</head>
+<body>
+  <header>
+    <h1>WhatsApp agent & archive</h1>
+    <div class="row" style="max-width: 420px;">
+      <div>
+        <label for="apiToken">API token (if <code>API_TOKEN</code> is set)</label>
+        <input id="apiToken" type="password" autocomplete="off" placeholder="Bearer token" />
+      </div>
+      <div style="align-self: end;">
+        <button type="button" id="saveToken" class="secondary">Save token</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Connection</h2>
+      <p id="health" class="status">Loading…</p>
+      <p class="status">When a QR appears below, open WhatsApp on your phone → <strong>Settings → Linked devices → Link a device</strong> and scan it. On Railway, set <code>API_TOKEN</code> first so this page is not public without your secret.</p>
+      <div id="qrWrap" class="qr-wrap" hidden>
+        <p class="status" style="margin-bottom: 0.5rem;">Scan this code:</p>
+        <img id="qrImg" alt="WhatsApp QR code" />
+      </div>
+      <p id="qrHint" class="status" hidden>No QR right now (already linked or still starting).</p>
+    </section>
+
+    <section>
+      <h2>Agent configuration</h2>
+      <div class="row cols-2">
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="off">Off — no drafts or sends</option>
+            <option value="approval">Approval — always queue draft for you</option>
+            <option value="autonomous">Autonomous — send unless approval keyword hits</option>
+            <option value="hybrid">Hybrid — auto on autonomous keywords, else queue</option>
+          </select>
+        </div>
+      </div>
+      <div class="row cols-2" style="margin-top: 0.75rem;">
+        <div>
+          <label for="autoKw">Autonomous keywords (hybrid / override hints), pipe or comma separated</label>
+          <input id="autoKw" />
+        </div>
+        <div>
+          <label for="apprKw">Always require approval if message contains</label>
+          <input id="apprKw" />
+        </div>
+      </div>
+      <div style="margin-top: 0.75rem;">
+        <label for="extra">Extra system instructions for the model</label>
+        <textarea id="extra"></textarea>
+      </div>
+      <div style="margin-top: 0.75rem;">
+        <button type="button" id="saveConfig">Save configuration</button>
+      </div>
+      <p id="configMsg" class="status"></p>
+    </section>
+
+    <section>
+      <h2>Pending replies</h2>
+      <button type="button" id="refreshPending" class="secondary">Refresh</button>
+      <div id="pendingList" style="margin-top: 0.75rem;"></div>
+    </section>
+
+    <section>
+      <h2>Recent messages (by chat)</h2>
+      <div class="row cols-2">
+        <div>
+          <label for="chatId">WhatsApp chat id (e.g. 491234567890@c.us)</label>
+          <input id="chatId" placeholder="chat_id@c.us" />
+        </div>
+        <div style="align-self: end;">
+          <button type="button" id="loadMessages" class="secondary">Load</button>
+        </div>
+      </div>
+      <pre id="messagesOut" style="margin-top: 0.75rem; font-size: 0.8rem; overflow: auto; max-height: 280px; background: #121a24; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);"></pre>
+    </section>
+  </main>
+  <script>
+    const LS = 'wa_agent_api_token';
+
+    function getToken() {
+      const v = document.getElementById('apiToken').value.trim();
+      if (v) return v;
+      return localStorage.getItem(LS) || '';
+    }
+
+    function headers() {
+      const t = getToken();
+      const h = { 'Content-Type': 'application/json' };
+      if (t) h['Authorization'] = 'Bearer ' + t;
+      return h;
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch('/api' + path, { ...opts, headers: { ...headers(), ...(opts.headers || {}) } });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
+      return data;
+    }
+
+    document.getElementById('saveToken').onclick = () => {
+      const v = document.getElementById('apiToken').value.trim();
+      if (v) localStorage.setItem(LS, v);
+      else localStorage.removeItem(LS);
+      document.getElementById('configMsg').textContent = 'Token saved in browser.';
+    };
+    document.getElementById('apiToken').value = localStorage.getItem(LS) || '';
+
+    async function loadHealth() {
+      const el = document.getElementById('health');
+      const qrWrap = document.getElementById('qrWrap');
+      const qrImg = document.getElementById('qrImg');
+      const qrHint = document.getElementById('qrHint');
+      try {
+        const h = await api('/health');
+        el.textContent = h.whatsappReady
+          ? 'WhatsApp: connected and ready.'
+          : 'WhatsApp: waiting for you to scan the QR (or still connecting).';
+        el.className = 'status ' + (h.whatsappReady ? 'ok' : 'bad');
+        const qr = h.whatsappQr;
+        if (qr && qr.dataUrl && !h.whatsappReady) {
+          qrImg.src = qr.dataUrl;
+          qrWrap.hidden = false;
+          qrHint.hidden = true;
+        } else {
+          qrWrap.hidden = true;
+          qrHint.hidden = h.whatsappReady;
+        }
+      } catch (e) {
+        el.textContent = 'Health check failed: ' + e.message;
+        el.className = 'status bad';
+        qrWrap.hidden = true;
+        qrHint.hidden = true;
+      }
+    }
+
+    async function loadConfig() {
+      const c = await api('/config');
+      document.getElementById('mode').value = c.mode || 'approval';
+      document.getElementById('autoKw').value = c.autonomous_keywords || '';
+      document.getElementById('apprKw').value = c.approval_keywords || '';
+      document.getElementById('extra').value = c.system_prompt_extra || '';
+    }
+
+    document.getElementById('saveConfig').onclick = async () => {
+      const msg = document.getElementById('configMsg');
+      msg.textContent = 'Saving…';
+      try {
+        await api('/config', {
+          method: 'PUT',
+          body: JSON.stringify({
+            mode: document.getElementById('mode').value,
+            autonomous_keywords: document.getElementById('autoKw').value,
+            approval_keywords: document.getElementById('apprKw').value,
+            system_prompt_extra: document.getElementById('extra').value,
+          }),
+        });
+        msg.textContent = 'Saved.';
+      } catch (e) {
+        msg.textContent = e.message;
+      }
+    };
+
+    function renderPending(items) {
+      const root = document.getElementById('pendingList');
+      root.innerHTML = '';
+      if (!items.length) {
+        root.textContent = 'No pending drafts.';
+        return;
+      }
+      for (const p of items) {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML =
+          '<small>#' + p.id + ' · ' + (p.chat_id || '') + '</small>' +
+          '<p><strong>Them:</strong> ' + escapeHtml(p.incoming_body || '') + '</p>' +
+          '<p><strong>Draft:</strong></p>';
+        const ta = document.createElement('textarea');
+        ta.className = 'edit-draft';
+        ta.value = p.draft_body || '';
+        div.appendChild(ta);
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const send = document.createElement('button');
+        send.textContent = 'Send (use edited text if changed)';
+        send.onclick = async () => {
+          try {
+            await api('/pending/' + p.id + '/approve', {
+              method: 'POST',
+              body: JSON.stringify({ editedText: ta.value }),
+            });
+            await refreshPending();
+          } catch (e) {
+            alert(e.message);
+          }
+        };
+        const rej = document.createElement('button');
+        rej.className = 'danger secondary';
+        rej.textContent = 'Reject';
+        rej.onclick = async () => {
+          try {
+            await api('/pending/' + p.id + '/reject', { method: 'POST', body: '{}' });
+            await refreshPending();
+          } catch (e) {
+            alert(e.message);
+          }
+        };
+        actions.appendChild(send);
+        actions.appendChild(rej);
+        div.appendChild(actions);
+        root.appendChild(div);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function refreshPending() {
+      try {
+        const list = await api('/pending');
+        renderPending(list);
+      } catch (e) {
+        document.getElementById('pendingList').textContent = e.message;
+      }
+    }
+
+    document.getElementById('refreshPending').onclick = refreshPending;
+
+    document.getElementById('loadMessages').onclick = async () => {
+      const chatId = document.getElementById('chatId').value.trim();
+      const out = document.getElementById('messagesOut');
+      if (!chatId) {
+        out.textContent = 'Enter a chat id.';
+        return;
+      }
+      try {
+        const msgs = await api('/messages?chatId=' + encodeURIComponent(chatId) + '&limit=80');
+        out.textContent = JSON.stringify(msgs, null, 2);
+      } catch (e) {
+        out.textContent = e.message;
+      }
+    };
+
+    (async () => {
+      await loadHealth();
+      try {
+        await loadConfig();
+      } catch (e) {
+        document.getElementById('configMsg').textContent = e.message;
+      }
+      await refreshPending();
+      setInterval(loadHealth, 4000);
+    })();
+  </script>
+</body>
+</html>

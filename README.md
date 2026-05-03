@@ -1,1 +1,59 @@
-# whatsapp_crm
+# WhatsApp archive + configurable AI agent (RAG-style)
+
+Node service using [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) to sync messages into SQLite, embed them with OpenAI, and draft replies. You control **when** the bot sends on its own versus when it queues a draft for your approval (with optional edit before send).
+
+## Railway-only workflow (no local run)
+
+1. **Create a Railway project** from this repo and use the **Dockerfile** (default when `Dockerfile` is present).
+2. **Add a volume**: create a volume and mount it at **`/data`** on the service. The image sets `DATA_ROOT=/data`, so both **`app.db`** and **`.wwebjs_auth`** (WhatsApp session) persist across deploys.
+3. **Set variables** in Railway:
+   - **`OPENAI_API_KEY`** — required for embeddings and reply drafts.
+   - **`API_TOKEN`** — **required on Railway**: a long random secret. The dashboard stores it in your browser and sends `Authorization: Bearer …` to `/api/*`. Without it, the API returns 503 so the pairing QR and your chats are not exposed publicly.
+   - **`PORT`** — Railway injects this automatically; do not override unless you know what you are doing.
+4. **Deploy**, open your Railway **public URL** (root `/`).
+5. In the **Connection** section, paste **`API_TOKEN`** → **Save token**. When WhatsApp needs pairing, a **QR image** appears there; scan with **WhatsApp → Settings → Linked devices → Link a device**.
+6. Use **Agent configuration** and **Pending replies** on the same page.
+
+Optional: **`ALLOW_OPEN_API=1`** disables the Railway requirement for `API_TOKEN` (not recommended on a public URL).
+
+## Features
+
+- **Message store**: Messages seen while the client runs are stored in SQLite.
+- **Embeddings (RAG-style)**: Text is embedded; drafts use your **past replies in the same chat** with highest similarity plus recent thread lines.
+- **Agent modes**: `off`, `approval`, `autonomous`, `hybrid` with keyword lists (see earlier sections in code / `policy.js`).
+- **Web UI** at `/` — QR when needed, health, config, pending approvals, message peek by `chatId`.
+
+## Environment
+
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI key for embeddings + chat |
+| `API_TOKEN` | **Set on Railway** — secures `/api/*` and QR in the UI |
+| `DATA_ROOT` | Data directory (Dockerfile: `/data`) |
+| `DATABASE_PATH` | Override DB path (default `$DATA_ROOT/app.db`) |
+| `ALLOW_OPEN_API` | Set to `1` only if you accept an open API (e.g. local dev) |
+| `PUPPETEER_EXECUTABLE_PATH` | Set in Docker image to Chromium |
+
+## Local run (optional)
+
+```bash
+npm install
+npm start
+```
+
+Without Railway env vars you can omit `API_TOKEN` for quick testing; for anything reachable from the internet, always set `API_TOKEN`.
+
+**Compliance note:** Automating WhatsApp may violate Meta’s terms of use. Use an official API (WhatsApp Business Cloud API) for production customer messaging where policy matters.
+
+## API
+
+All under `/api/*` (Bearer token or `?token=` when `API_TOKEN` is set).
+
+- `GET /api/health` — `{ ok, whatsappReady, whatsappQr? }` (`whatsappQr` has `dataUrl` for the pairing image when needed)
+- `GET` / `PUT /api/config`
+- `GET /api/pending`, `POST /api/pending/:id/approve`, `POST /api/pending/:id/reject`
+- `GET /api/messages?chatId=...`
+
+## Tech stack
+
+Node 18+, Express, better-sqlite3, OpenAI SDK, whatsapp-web.js, Puppeteer/Chromium.
