@@ -16,6 +16,20 @@ Node service using [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web
 
 Optional: **`ALLOW_OPEN_API=1`** disables the Railway requirement for `API_TOKEN` (not recommended on a public URL).
 
+## How to verify which commit Railway is running
+
+After deploy, open **`https://<your-service>.up.railway.app/version`** (no API token needed). You should see JSON including:
+
+- **`gitCommitSha`** — full SHA when Railway sets `RAILWAY_GIT_COMMIT_SHA` (GitHub-triggered deploys), or **`gitCommitShaShort`** (first 7 chars) for a quick compare to `git log`.
+- **`gitBranch`** — branch that triggered the deploy, when available.
+- **`railwayDeploymentId`** — Railway’s deployment id.
+
+The Docker build also passes **`ARG RAILWAY_GIT_COMMIT_SHA`** into **`DEPLOY_GIT_SHA`** so the SHA is visible even when only the build receives Railway’s git args.
+
+**In the Railway UI:** open the deployment → **Build logs** or **Deploy logs**; the image build usually prints the cloned commit, and this app logs `Deploy revision: git=...` on startup.
+
+**Common mismatch:** the service is connected to **`main`** while fixes are on a feature branch — then Railway will never show `262f536` until you merge or change the service’s **root directory / branch** to the branch that contains that commit.
+
 ## Features
 
 - **Message store**: Messages seen while the client runs are stored in SQLite.
